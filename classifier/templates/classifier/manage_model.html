@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Models — ESRB Predictor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','system-ui','sans-serif']}}}}</script>
+<style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+</head>
+<body class="min-h-screen bg-[#f5f5f3] text-neutral-900">
+
+<!-- ── HEADER ── -->
+<header class="sticky top-0 z-50 bg-white border-b border-neutral-200 px-8 h-14 flex items-center justify-between">
+  <span class="text-base font-semibold tracking-tight">ESRB Rating Predictor</span>
+  <nav class="flex items-center gap-4 text-sm text-neutral-500">
+    <a href="{% url 'index' %}" class="hover:text-neutral-900 transition-colors">← Predictor</a>
+    <a href="{% url 'logs' %}" class="hover:text-neutral-900 transition-colors">Logs</a>
+    <a href="{% url 'manage_model' %}" class="text-neutral-900 font-medium">Models</a>
+  </nav>
+</header>
+
+<main class="max-w-3xl mx-auto px-6 py-10 space-y-5">
+
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Model Manager</h1>
+    <p class="text-sm text-neutral-500 mt-1">Switch between trained models without restarting the server.</p>
+  </div>
+
+  <!-- Message -->
+  {% if message %}
+  <div class="rounded-xl px-5 py-3.5 text-sm border
+    {% if message.0 == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800
+    {% else %}bg-red-50 border-red-200 text-red-700{% endif %}">
+    {{ message.1 }}
+  </div>
+  {% endif %}
+
+  <!-- Model list -->
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if models %}
+    <div class="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+      <div class="px-5 py-3 bg-[#fafaf9] border-b border-neutral-200">
+        <span class="text-[11px] uppercase tracking-widest text-neutral-400 font-semibold">Available Models</span>
+      </div>
+      <div class="divide-y divide-neutral-100">
+        {% for m in models %}
+        <label class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-neutral-50 transition-colors {% if m == active_model %}bg-neutral-50{% endif %}">
+          <input type="radio" name="model" value="{{ m }}" {% if m == active_model %}checked{% endif %}
+            class="w-4 h-4 accent-black shrink-0">
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-sm font-mono truncate">{{ m }}</div>
+            <div class="text-xs text-neutral-400 mt-0.5">
+              {% for k, v in model_infos.items %}{% if k == m %}{{ v.version|upper }} model{% endif %}{% endfor %}
+            </div>
+          </div>
+          {% if m == active_model %}
+          <span class="text-[10px] uppercase tracking-widest font-semibold bg-black text-white px-2.5 py-1 rounded-full shrink-0">Active</span>
+          {% else %}
+          <span class="text-[10px] text-neutral-400 shrink-0">Inactive</span>
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="w-full bg-black text-white py-3 rounded-xl text-sm font-medium hover:opacity-90 active:scale-[0.99] transition-all">
+      Activate Selected Model
+    </button>
+    {% else %}
+    <div class="bg-white border border-dashed border-neutral-300 rounded-xl p-12 text-center">
+      <div class="text-2xl mb-3">📂</div>
+      <p class="text-neutral-500 text-sm">No <code class="text-neutral-700">.pkl</code> files found in the <code class="text-neutral-700">models/</code> directory.</p>
+    </div>
+    {% endif %}
+  </form>
+
+  <!-- ── Version comparison ── -->
+  <div class="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+    <div class="px-5 py-3 bg-[#fafaf9] border-b border-neutral-200">
+      <span class="text-[11px] uppercase tracking-widest text-neutral-400 font-semibold">Model Versions</span>
+    </div>
+    <div class="grid grid-cols-2 divide-x divide-neutral-100">
+      <div class="p-5">
+        <div class="text-xs font-semibold font-mono text-neutral-500 mb-3">V1 — DESCRIPTOR ONLY</div>
+        <ul class="text-sm text-neutral-600 space-y-1.5">
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>31 binary content descriptors</li>
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>Works immediately, no merge needed</li>
+          <li class="flex items-start gap-2"><span class="text-neutral-300 mt-0.5">—</span>~84% accuracy</li>
+          <li class="flex items-start gap-2"><span class="text-neutral-300 mt-0.5">—</span>E vs ET can be ambiguous</li>
+        </ul>
+      </div>
+      <div class="p-5">
+        <div class="text-xs font-semibold font-mono text-neutral-500 mb-3">V2 — ENRICHED PIPELINE</div>
+        <ul class="text-sm text-neutral-600 space-y-1.5">
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>All V1 features + Genre, Platform</li>
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>Critic score (optional — handles missing)</li>
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>Calibrated probabilities</li>
+          <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">✓</span>~88–91% accuracy, better E/ET</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── How to add a model ── -->
+  <div class="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+    <div class="px-5 py-3 bg-[#fafaf9] border-b border-neutral-200">
+      <span class="text-[11px] uppercase tracking-widest text-neutral-400 font-semibold">How to Add a New Model</span>
+    </div>
+    <div class="p-5 space-y-4">
+      <p class="text-sm text-neutral-600">Train a model with <code class="bg-neutral-100 px-1.5 py-0.5 rounded text-xs font-mono">train_model_v1.py</code> or <code class="bg-neutral-100 px-1.5 py-0.5 rounded text-xs font-mono">train_model_v2.py</code>, drop the <code class="bg-neutral-100 px-1.5 py-0.5 rounded text-xs font-mono">.pkl</code> into <code class="bg-neutral-100 px-1.5 py-0.5 rounded text-xs font-mono">models/</code>, then activate it above.</p>
+
+      <div class="bg-[#111] rounded-xl p-4 font-mono text-xs text-neutral-200 leading-7 overflow-x-auto">
+<pre># V1 — fast, descriptor-only
+python train_model_v1.py \
+  --data Video_games_esrb_rating.csv \
+  --out  models/my_v1.pkl --algo gb
+
+# V2 — enriched (requires Kaggle dataset)
+python train_model_v2.py \
+  --esrb   Video_games_esrb_rating.csv \
+  --kaggle Video_Games_Sales_with_Ratings.csv \
+  --out    models/my_v2.pkl</pre>
+      </div>
+
+      <p class="text-sm text-neutral-500">The Kaggle dataset can be downloaded from <span class="font-mono text-xs bg-neutral-100 px-1.5 py-0.5 rounded">kaggle.com/datasets/rush4ratio/video-game-sales-with-ratings</span></p>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
